@@ -6,6 +6,12 @@ public class Controller : MonoBehaviour
 {
     GameObject card;
     public GameOver GameOverScreen;
+    
+    // time to wait before the cards are flipped and the game is start
+    int TIME_TO_MEMORIZE = 7;
+
+    // list which will store all the cards
+    public List<MainCard> allCards = new List<MainCard>();
 
     // create list to represent each different kind of card face (2 of each)
     List<int> faceIndexes = new List<int> {
@@ -42,6 +48,10 @@ public class Controller : MonoBehaviour
             
             // set face
             temp.GetComponent<MainCard>().faceIndex = faceIndexes[shuffle];
+
+            // add created list to cards
+            allCards.Add(temp.GetComponent<MainCard>());
+
             faceIndexes.Remove(faceIndexes[shuffle]);
 
             xPosition += distance;
@@ -52,7 +62,30 @@ public class Controller : MonoBehaviour
                 yPosition -= distance;
             }
         }
+        // set initial card to last item remaining in the cards
         card.GetComponent<MainCard>().faceIndex = faceIndexes[0];
+
+        // add initial card to card list
+        allCards.Add(card.GetComponent<MainCard>());
+
+        StartCoroutine(startOfGame());
+        
+
+    }
+
+    // function to flip all the cards at the start in order to allow the player a chance to memorize them
+    // after 5 seconds, the cards will all flip back
+    IEnumerator startOfGame() {
+        for(int i=0; i<allCards.Count; i+=1) {
+            allCards[i].showFace(allCards[i].faceIndex);
+        }
+        // wait for 5 seconds, then flip the cards to their backs
+        yield return new WaitForSeconds(TIME_TO_MEMORIZE);
+        for(int i=0; i<allCards.Count; i+=1) {
+            allCards[i].showBack();
+            allCards[i].clickable = true; // allow player to click on cards after this stage
+        }
+
     }
 
     // function to determine whether two cards have been flipped
@@ -87,17 +120,54 @@ public class Controller : MonoBehaviour
     // check if cards match
     public bool CardsMatch() {
         if(visibleFaces[0] == visibleFaces[1]) {
+
+            MainCard card1 = null;
+            MainCard card2 = null;
+            for(int i=0; i<allCards.Count; i+=1) {
+                if(allCards[i].faceIndex == visibleFaces[0]) {
+                    if(card1 is null) {
+                        card1 = allCards[i];
+                    }
+                    else if(card2 is null){
+                        card2 = allCards[i];
+                    }
+                }
+            }
+
+            // mark both cards as matched by finding the index of the card in our list through
+            card1.isMatched = true;
+            card2.isMatched = true;
+            card1.clickable = false;
+            card2.clickable = false;
             visibleFaces[0] = -1;
             visibleFaces[1] = -1;
+            gameWon();
             return true;
         }
-        print("Game Should Be Over");
-        GameIsOver(0);
+        // if two cards are flipped but do not match, game is over
+        else if (visibleFaces[0] >= 0 && visibleFaces[1] >= 0) {
+            GameIsOver(0);
+            return false;
+        }
         return false;
+    }
+
+    // check for win
+    public void gameWon() {
+        for(int i=0; i<allCards.Count; i+=1) {
+            if(allCards[i].isMatched == false) {
+                return;
+            }
+        }
+        GameIsOver(1);
     }
 
     // 
     public void GameIsOver(int result) {
+        // disable clicking on cards while game is over
+        for(int i=0; i<allCards.Count; i+=1) {
+            allCards[i].clickable = false; // allow player to click on cards after this stage
+        }
         GameOverScreen.Setup(result);
     }
 
